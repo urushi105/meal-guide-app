@@ -1,0 +1,4 @@
+学習済みモデルを ONNX に変換したファイルを、
+このフォルダに「last.onnx」という名前で置いてください。
+
+変換のしかた:  tools/export_model.py（README.md の手順2）

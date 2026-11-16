@@ -1,0 +1,310 @@
+/* ============================================================
+   style.css ： 見た目（色・大きさ・配置）を決めるファイル
+   ※ 色は、参考画像から取り出した値を使っています
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   色の一覧（ここを変えると、アプリ全体の色が変わります）
+   ------------------------------------------------------------ */
+:root {
+  --bg-home: #000000;               /* ホーム画面の背景（黒） */
+  --bg-sheet: #1c1c1e;              /* 詳細設定画面の背景（濃い灰色） */
+
+  --blue: #3b82f6;                  /* 四角ボタンの青 */
+  --blue-circle: #3f8ef7;           /* 丸ボタンの青 */
+  --blue-circle-ring: #59affa;      /* 丸ボタンのふちの色 */
+  --icon-cyan: #9dfaff;             /* 丸ボタンの中の記号（i・チェック）の水色 */
+
+  --pill-bg: #3a3a3e;               /* S/M/L や −/+ ボタンの背景 */
+  --pill-border: #4d4d4f;           /* 同じく、ふちの色 */
+
+  /* ※ 参考画像ではこの文字色が黒で読みにくかったため、白にしています。
+        画像どおりにしたい場合は #000000 に変えてください */
+  --pill-text: #ffffff;
+
+  --link: #3a8ff9;                  /* 「データを保存する」の青 */
+  --text: #ffffff;                  /* 文字の白 */
+  --note: #8e8e93;                  /* 補足説明の灰色 */
+
+  --transcript-size: 18px;          /* 文字起こしの文字の大きさ（設定で変わる） */
+}
+
+
+/* ------------------------------------------------------------
+   全体の基本設定
+   ------------------------------------------------------------ */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;   /* ※ タップ時の灰色の四角を消す */
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000000;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  overscroll-behavior: none;          /* ※ 引っぱって更新、を防ぐ */
+  touch-action: manipulation;         /* ※ ダブルタップで拡大、を防ぐ */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ※ hidden 属性がついた部品は、必ず隠す */
+[hidden] {
+  display: none !important;
+}
+
+/* ※ 画面には見えないが、VoiceOver には読まれる部品 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+
+/* ============================================================
+   ホーム画面
+   ============================================================ */
+.screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-home);
+  padding-top: env(safe-area-inset-top);        /* ※ 上のノッチ・時計の部分を避ける */
+  padding-bottom: env(safe-area-inset-bottom);  /* ※ 下のホームバーを避ける */
+}
+
+
+/* --- カメラ映像（縦3：横4 の大きさ） --- */
+.camera-wrap {
+  position: relative;
+  width: 83%;
+  aspect-ratio: 3 / 4;
+  max-height: 56vh;
+  max-height: 56dvh;
+  margin: 12px auto 0;
+  background: #000000;
+  overflow: hidden;
+  flex: none;
+}
+
+.camera-wrap video,
+.camera-wrap canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;     /* ※ 映像の全体が見えるように表示（検出する範囲＝見えている範囲） */
+}
+
+
+/* --- 丸いボタン（設定を開く・設定を閉じる 共通） --- */
+.round-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue-circle);
+  border: 1.5px solid var(--blue-circle-ring);
+}
+
+.round-button svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--icon-cyan);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.round-button svg .dot {
+  fill: var(--icon-cyan);
+  stroke: none;
+}
+
+/* ※ ホーム画面の「左上」に置く（カメラ映像の左上に少し重なる） */
+#openSettings {
+  position: absolute;
+  left: 16px;
+  top: calc(env(safe-area-inset-top) + 10px);
+}
+
+
+/* --- 文字起こし（真ん中の黒い部分） --- */
+.transcript {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px 16px;
+  font-size: var(--transcript-size);
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.transcript .line {
+  margin-bottom: 0.5em;
+  overflow-wrap: anywhere;
+}
+
+/* ※ 古い行ほど薄くする（いちばん上が最新） */
+.transcript .line:nth-child(n + 2) { opacity: 0.55; }
+.transcript .line:nth-child(n + 4) { opacity: 0.3; }
+
+
+/* --- 下の手動ボタン --- */
+.button-row {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: 8%;
+  padding: 8px 0 16px;
+}
+
+.rect-button {
+  width: 40%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 0;            /* ※ 参考画像のとおり、角は丸くしない */
+  background: var(--blue);
+  color: #ffffff;
+  font-size: 20px;
+}
+
+.rect-button:active {
+  filter: brightness(0.85);
+}
+
+
+
+/* ============================================================
+   詳細設定画面
+   ============================================================ */
+.sheet {
+  position: fixed;
+  top: 9px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  overflow-y: auto;
+  background: var(--bg-sheet);
+  border-radius: 36px 36px 0 0;       /* ※ 上の左右の角を丸くする */
+  padding: 0 14px calc(env(safe-area-inset-bottom) + 24px);
+}
+
+/* ※ 右上のチェックボタン */
+.sheet .round-button.check {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.rows {
+  padding-top: 84px;     /* ※ チェックボタンの下から項目を並べる */
+}
+
+
+/* --- 1行ぶん（左に項目名、右に操作部品） --- */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 4px 0;
+}
+
+.label {
+  font-size: 17px;
+}
+
+.value {
+  font-size: 17px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+}
+
+.number {
+  min-width: 2.4em;
+  margin-right: 20px;
+  text-align: right;
+  font-size: 17px;
+}
+
+
+/* --- S / M / L や − / + のボタン --- */
+.pill {
+  min-width: 52px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--pill-border);
+  background: var(--pill-bg);
+  color: var(--pill-text);
+  font-size: 18px;
+}
+
+.pill.wide {
+  min-width: 76px;
+}
+
+.controls .pill + .pill {
+  margin-left: -2px;       /* ※ 隣のボタンとくっつけて並べる */
+}
+
+/* ※ 選ばれているボタンは青くする（S/M/L） */
+.pill[aria-pressed="true"] {
+  background: var(--blue);
+  border-color: var(--blue-circle-ring);
+}
+
+
+/* --- 補足の説明文 --- */
+.note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--note);
+}
+
+.note.center {
+  text-align: center;
+}
+
+
+/* --- 「データを保存する」（背景なしの青い文字） --- */
+.link-button {
+  display: block;
+  margin: 40px auto 6px;
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 19px;
+}

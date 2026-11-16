@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+
+  <!-- ※ スマホの画面にぴったり合わせる設定（拡大縮小は無効） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <!-- ※ ホーム画面に追加したとき（PWA）の見た目の設定 -->
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="食事案内">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+
+  <title>音声案内食事支援</title>
+</head>
+
+<body>
+
+  <!-- ==================================================
+       ホーム画面
+       ================================================== -->
+  <main id="home" class="screen">
+
+    <!-- カメラ映像（YOLOで検出する映像）。上に検出した枠を重ねて描く -->
+    <div class="camera-wrap">
+      <video id="camera" playsinline muted autoplay aria-hidden="true"></video>
+      <canvas id="overlay" aria-hidden="true"></canvas>
+    </div>
+
+    <!-- 左上の丸いボタン：詳細設定画面を開く -->
+    <button id="openSettings" class="round-button" type="button" aria-label="詳細設定を開く">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.5"></circle>
+        <line x1="12" y1="11" x2="12" y2="17"></line>
+        <circle cx="12" cy="7.6" r="1" class="dot"></circle>
+      </svg>
+    </button>
+
+    <!-- 真ん中の黒い部分：音声で出力することを白い文字で表示（文字起こし） -->
+    <div id="transcript" class="transcript" role="region" aria-label="音声案内の文字起こし"></div>
+
+    <!-- 下の手動ボタン -->
+    <div class="button-row">
+      <button id="startButton" class="rect-button" type="button">音声案内開始</button>
+      <button id="endButton" class="rect-button" type="button">音声案内終了</button>
+    </div>
+
+  </main>
+
+
+  <!-- ==================================================
+       詳細設定画面（ホーム画面の上に重ねて表示する）
+       ================================================== -->
+  <section id="settings" class="sheet" role="dialog" aria-modal="true" aria-label="詳細設定" hidden>
+
+    <!-- 右上のチェックボタン：設定を閉じてホームに戻る -->
+    <button id="closeSettings" class="round-button check" type="button" aria-label="設定を閉じる">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <polyline points="5.5 12.5 10 17 18.5 7"></polyline>
+      </svg>
+    </button>
+
+    <div class="rows">
+
+      <!-- モデル名 -->
+      <div class="row">
+        <span class="label">モデル名</span>
+        <span id="modelName" class="value">YOLOv8n</span>
+      </div>
+
+      <!-- 文字の大きさ（文字起こしの文字） -->
+      <div class="row">
+        <span class="label">文字の大きさ</span>
+        <div class="controls">
+          <button class="pill" type="button" data-font="S" aria-pressed="false">S</button>
+          <button class="pill" type="button" data-font="M" aria-pressed="true">M</button>
+          <button class="pill" type="button" data-font="L" aria-pressed="false">L</button>
+        </div>
+      </div>
+
+      <!-- 再生速度（0.1〜2.0） -->
+      <div class="row">
+        <span class="label">再生速度</span>
+        <div class="controls">
+          <span id="rateValue" class="number">1.0</span>
+          <button id="rateDown" class="pill wide" type="button" aria-label="再生速度を下げる">−</button>
+          <button id="rateUp" class="pill wide" type="button" aria-label="再生速度を上げる">+</button>
+        </div>
+      </div>
+      <p id="rateNote" class="note">VoiceOver使用中は、読み上げの速さを iPhone の「設定」→「アクセシビリティ」→「VoiceOver」→「読み上げ速度」で変えてください。</p>
+
+      <!-- カメラの倍率（0.5〜1.0） -->
+      <div class="row">
+        <span class="label">カメラの倍率</span>
+        <div class="controls">
+          <span id="zoomValue" class="number">1.0</span>
+          <button id="zoomDown" class="pill wide" type="button" aria-label="カメラの倍率を下げる">−</button>
+          <button id="zoomUp" class="pill wide" type="button" aria-label="カメラの倍率を上げる">+</button>
+        </div>
+      </div>
+      <p id="zoomNote" class="note" hidden></p>
+
+    </div>
+
+    <!-- 下の方：データを保存する -->
+    <button id="saveData" class="link-button" type="button">データを保存する</button>
+    <p id="saveStatus" class="note center"></p>
+
+  </section>
+
+
+  <!-- ==================================================
+       VoiceOver に読ませるための、画面には見えない領域
+       （ここの文字が書き換わると VoiceOver が読み上げる）
+       ================================================== -->
+  <div id="liveRegion" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+
+  <!-- 物体検出を動かすライブラリ（ONNX Runtime Web） -->
+  <script src="lib/ort.wasm.min.js"></script>
+
+  <!-- アプリ本体 -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
