@@ -15,8 +15,8 @@
 //   error    : カメラやモデルに問題があって動けない
 //
 //   処理の流れ
-//     待機 → 開始ジェスチャー → 3秒後に案内開始 → 初期案内（熱い物・食べてはいけない物の方向）
-//          → 再検出ジェスチャー（開始から終了まで何回でも）
+//     待機 → 開始ジェスチャー → 3秒後に案内開始 → 初期案内（熱い物・食べてはいけない物・その他の方向）
+//          → 再検出ジェスチャー（開始から終了まで何回でも／食べ物が無ければ食事終了案内）
 //          → 終了ジェスチャー → 3秒後に案内終了 → 待機
 //
 //   loading → idle → scanning → guiding → idle → ...
@@ -27,7 +27,7 @@ import { MODEL, GESTURE, ACTION_LABELS, SCAN, SPEECH, UI } from "./config.js";
 import { loadModel, detect } from "./detector.js";
 import { startCamera, restartCamera, setZoom, isReady } from "./camera.js";
 import { createGestureEngine } from "./gesture.js";
-import { createScanner, buildInitialMessages } from "./guide.js";
+import { createScanner, buildInitialMessages, buildRedetectMessages } from "./guide.js";
 import { describeClass } from "./classes.js";
 import { initSpeech, say, announceUI } from "./speech.js";
 import { settings, loadSettings, saveSettings, clampStep } from "./settings.js";
@@ -69,9 +69,10 @@ let state = "loading";
 let modelReady = false;
 let trayExpected = false;   // ※ モデルに「お盆」のクラスがあるか（あれば、お盆の中心を基準にする）
 
-let scanner = null;       // ※ 食卓スキャンの集計係
-let scanOpenAt = 0;       // ※ この時刻からスキャンの撮影を始める
-let scanCloseAt = 0;      // ※ この時刻でスキャンを終える
+let scanner = null;          // ※ 食卓スキャンの集計係
+let scanKind = "initial";    // ※ スキャンの種類："initial"（案内開始）または "redetect"（再検出）
+let scanOpenAt = 0;          // ※ この時刻からスキャンの撮影を始める
+let scanCloseAt = 0;         // ※ この時刻でスキャンを終える
 
 
 
@@ -115,9 +116,11 @@ function addTranscriptLine(text) {
 
 // ------------------------------------------------------------
 // 食卓スキャンを始める（案内開始・再検出の両方で使う）
+//   kind : "initial"（案内開始）または "redetect"（再検出）
 // ------------------------------------------------------------
-function beginScan() {
+function beginScan(kind) {
 
+  scanKind = kind;
   setState("scanning");
 
   scanner = createScanner();
@@ -141,14 +144,14 @@ function startGuidance() {
 
   say("案内を開始します。手を下ろして、そのままお待ちください。", { interrupt: true });
 
-  beginScan();
+  beginScan("initial");
 
   return true;
 }
 
 
 // ------------------------------------------------------------
-// 再検出する（もう一度、食卓をスキャンして最初の案内をやり直す）
+// 再検出する（もう一度、食卓をスキャンして案内する）
 // ------------------------------------------------------------
 function redetect() {
 
@@ -160,7 +163,7 @@ function redetect() {
 
   say("再検出します。手を下ろして、そのままお待ちください。", { interrupt: true });
 
-  beginScan();
+  beginScan("redetect");
 
   return true;
 }
@@ -187,17 +190,19 @@ function endGuidance() {
 
 
 // ------------------------------------------------------------
-// スキャンが終わったとき：結果をまとめて、最初の案内を読み上げる
+// スキャンが終わったとき：結果をまとめて、案内を読み上げる
 // ------------------------------------------------------------
 function finishScan(frameWidth, frameHeight) {
 
   const result = scanner.finish(frameWidth, frameHeight, { trayExpected: trayExpected });
-  const messages = buildInitialMessages(result);
+  const messages = (scanKind === "redetect")
+    ? buildRedetectMessages(result)
+    : buildInitialMessages(result);
 
   scanner = null;
 
   const summary = result.items.map((i) => (i.center ? `${i.ja}=中央` : `${i.ja}=${i.hour}時`)).join(" ");
-  log("state", `スキャン結果（基準: ${result.reference.type}）: ${summary || "なし"}`);
+  log("state", `スキャン結果[${scanKind}]（基準: ${result.reference.type}）: ${summary || "なし"}`);
 
   for (const message of messages) {
     say(message);

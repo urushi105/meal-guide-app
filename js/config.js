@@ -155,11 +155,13 @@ export const GESTURE_BY_CLASS_NAME = {
 // ------------------------------------------------------------
 // 3. クラス名 → 日本語名・熱い物・食べてはいけない物 の対応表
 // ------------------------------------------------------------
-// words    : クラス名にこの文字が含まれていたら、この行だとみなす
-// ja       : 音声で読み上げる日本語名
-// hot      : true なら「熱い物」（案内開始時に、最初に方向を伝える）
-// inedible : true なら「食べてはいけない物」（案内開始時に、熱い物のあとで方向を伝える）
-// tray     : true なら「お盆」（方向を伝えるときの基準になる）
+// words        : クラス名にこの文字が含まれていたら、この行だとみなす
+// ja           : 音声で読み上げる日本語名
+// hot          : true なら「熱い物」（最初に方向を伝える）
+// inedible     : true なら「食べてはいけない物」（熱い物のあとで方向を伝える）
+// tray         : true なら「お盆」（方向を伝えるときの基準になる）
+// notFoodOnEnd : true なら「食事終了の判定」で食べ物として数えない
+//                （お盆・水・箸・ふりかけ・食べてはいけない物が対象）
 //
 //
 // ※ 上にある行ほど優先されます
@@ -170,16 +172,16 @@ export const CLASS_TABLE = [
   { words: ["唐揚げ", "から揚げ", "唐揚", "karaage", "friedchicken"],  ja: "唐揚げ"  },
   { words: ["サラダ", "sarada", "salad"],                             ja: "サラダ"  },
   { words: ["小鉢", "kobati"],                                        ja: "小鉢"    },
-  { words: ["ふりかけ", "hurikake", "furikake"],                      ja: "ふりかけ" },
+  { words: ["ふりかけ", "hurikake", "furikake"],                      ja: "ふりかけ",   notFoodOnEnd: true },
   { words: ["レモン", "remon", "lemon"],                              ja: "レモン"  },
-  { words: ["水", "mizu", "water", "コップ", "cup", "お茶", "tea"],    ja: "水"      },
+  { words: ["水", "mizu", "water", "コップ", "cup", "お茶", "tea"],    ja: "水",         notFoodOnEnd: true },
 
-  // ※ tray: true の物が「お盆」。案内開始時に、お盆の中心を基準にして方向を伝えます
+  // ※ tray: true の物が「お盆」。お盆の中心を基準にして方向を伝えます
   //    （お盆のクラスが無いモデルでは、この行は使われず、画像の中心が基準になります）
-  { words: ["お盆", "obon", "tray", "トレー", "トレイ", "toray"],        ja: "お盆",       tray: true },
+  { words: ["お盆", "obon", "tray", "トレー", "トレイ", "toray"],        ja: "お盆",       tray: true, notFoodOnEnd: true },
 
-  // ※ inedible: true の物が「食べてはいけない物」（案内開始時に方向を伝えます）
-  { words: ["箸", "hasi", "hashi", "chopstick"],                      ja: "箸",         inedible: true },
+  // ※ inedible: true の物が「食べてはいけない物」
+  { words: ["箸", "hasi", "hashi", "chopstick"],                      ja: "箸",         inedible: true, notFoodOnEnd: true },
 ];
 
 
@@ -201,9 +203,9 @@ export const SCAN = {
   // ※ この自信度（0〜1）以上の検出だけを、案内に使う
   CONF_THRESHOLD: 0.35,
 
-  // ※ 熱い物・食べてはいけない物のほかに、「そのほかの料理」も案内するか
-  //    false = 案内しない（標準）／ true = 案内する
-  ANNOUNCE_OTHERS: false,
+  // ※ 熱い物・食べてはいけない物のほかに、「そのほかの要素」も案内するか
+  //    false = 案内しない／ true = 案内する
+  ANNOUNCE_OTHERS: true,
 
   // ※ 時計の方向を出すときの「基準点」
   //    お盆が見つかったとき → お盆の中心（自動。いちばん正確です）
@@ -262,5 +264,3 @@ export const UI = {
   RATE:  { MIN: 0.1, MAX: 2.0, STEP: 0.1, DEFAULT: 1.0 },
   ZOOM:  { MIN: 0.5, MAX: 1.0, STEP: 0.1, DEFAULT: 1.0 },
 };
-
-

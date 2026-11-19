@@ -1,18 +1,23 @@
 // ============================================================
-// guide.js ： 案内の中身（初期案内）を作るファイル
+// guide.js ： 案内の中身（初期案内・再検出案内・食事終了案内）を作るファイル
 //
-// 案内を開始したとき・再検出したときに、食卓を数秒ながめて、
-// 次の順番で「何時の方向にあるか」を伝えます。
+// 【案内開始時】
+//   (0) 基準の説明
+//   (1) 熱い物
+//   (2) 食べてはいけない物（「食べてはいけない物があります。〜です。」）
+//   (3) そのほかすべて（お盆・ジェスチャー以外の検出要素）
 //
-//   (0) 基準の説明       例）「お盆の中心から見た方向でお伝えします。」
-//   (1) 熱い物           例）「熱い物があります。味噌汁は3時の方向、ご飯は9時の方向です。」
-//   (2) 食べてはいけない物 例）「食べてはいけない物があります。箸は6時の方向です。」
+// 【再検出時】
+//   ※ お盆・水・箸・ふりかけ・食べてはいけない物以外に要素がない場合：
+//      「食事が終わりました。」と案内
+//   ※ 食べるべき物がある場合：
+//      (0) 基準の説明
+//      (1) 熱い物
+//      (2) 食べてはいけない物（「食べてはいけない物があります」とは言わず位置だけ）
+//      (3) そのほかすべて（お盆・ジェスチャー以外の検出要素）
 //
 // 方向の基準は「お盆の中心」です（お盆が見つかったとき）。
 // お盆が使えないときは、画像の中心（または料理全体の真ん中）を基準にします。
-//
-// ※ 「熱い物」「食べてはいけない物」は、config.js の CLASS_TABLE で決めます。
-// ※ このファイルは画面や音声には関係しません（文章を作るだけ）。
 // ============================================================
 
 import { SCAN } from "./config.js";
@@ -87,17 +92,40 @@ function median(numbers) {
 // ============================================================
 
 // ------------------------------------------------------------
+// 「食事終了の判定」で食べ物として数えない物かどうかを判定する
+//   対象：お盆・水・箸・ふりかけ・食べてはいけない物
+// ------------------------------------------------------------
+function isExcludedFromRemainingFood(item) {
+  if (item.inedible) return true;
+  if (item.info && item.info.tray) return true;
+  if (item.info && item.info.notFoodOnEnd) return true;
+
+  const nameLower = String(item.name || "").toLowerCase();
+  const jaText = String(item.ja || "");
+
+  const excludedWords = [
+    "お盆", "obon", "tray", "トレー", "トレイ", "toray",
+    "水", "mizu", "water", "コップ", "cup", "お茶", "tea",
+    "箸", "hasi", "hashi", "chopstick",
+    "ふりかけ", "hurikake", "furikake",
+  ];
+
+  return excludedWords.some((w) => nameLower.includes(w.toLowerCase()) || jaText.includes(w));
+}
+
+
+// ------------------------------------------------------------
 // スキャンのしくみを作る
 //   addFrame(detections)          : 1フレームぶんの検出結果を渡す
 //   finish(w, h, { trayExpected }) : 集計して { items, reference } を返す
-//        items     : 見つかった物のリスト（方向つき）
+//        items     : 見つかった物のリスト（方向つき。お盆・ジェスチャーは除外）
 //        reference : 方向の基準点 { type, x, y, size }
 //                    type = "tray"（お盆）/ "image"（画像の中心など）/ "image-fallback"
 //                           （お盆のクラスはあるが、今回は見つからなかった）
 // ------------------------------------------------------------
 export function createScanner() {
 
-  const frames = [];       // ※ フレームごとの「クラス名 → 検出」のメモ（料理・食べてはいけない物）
+  const frames = [];       // ※ フレームごとの「クラス名 → 検出」のメモ（お盆・ジェスチャー以外の要素）
   const trayFrames = [];   // ※ フレームごとの、お盆の検出（見つからなければ null）
 
 
@@ -111,7 +139,7 @@ export function createScanner() {
 
       if (det.score < SCAN.CONF_THRESHOLD) continue;
 
-      // --- お盆（基準点に使う） ---
+      // --- お盆（基準点に使う。案内対象からは除外） ---
       if (det.info.kind === "tray") {
         if (bestTray === null || det.score > bestTray.score) {
           bestTray = det;
@@ -119,7 +147,7 @@ export function createScanner() {
         continue;
       }
 
-      // --- 料理・食べてはいけない物（ジェスチャーなどは除く） ---
+      // --- ジェスチャーなどは除く（お盆・ジェスチャー以外の検出要素のみ対象） ---
       if (det.info.kind !== "item") continue;
 
       const old = bestByName.get(det.name);
@@ -180,8 +208,9 @@ export function createScanner() {
       items.push({
         name: name,
         ja: record.det.info.ja,
-        hot: record.det.info.hot,
-        inedible: record.det.info.inedible,
+        hot: Boolean(record.det.info.hot),
+        inedible: Boolean(record.det.info.inedible),
+        info: record.det.info,
         x: median(record.xs),
         y: median(record.ys),
       });
@@ -242,16 +271,25 @@ export function createScanner() {
 
 
 // ============================================================
-// 初期案内の文章
+// 案内文章の生成（案内開始・再検出）
 // ============================================================
 
 // ------------------------------------------------------------
 // スキャン結果（finish の戻り値）から、読み上げる文章（複数）を作る
-//   順番：(0) 基準の説明 → (1) 熱い物 → (2) 食べてはいけない物 →（設定すれば）(3) そのほか
+//   options.isRedetect : true の場合は「再検出」のルールで文章を作る
 // ------------------------------------------------------------
-export function buildInitialMessages(result) {
+export function buildInitialMessages(result, options = {}) {
 
+  const isRedetect = options.isRedetect === true;
   const { items, reference } = result;
+
+  // ※ 再検出時：お盆・水・箸・ふりかけ・食べてはいけない物以外に要素がない場合
+  if (isRedetect) {
+    const remainingFoods = items.filter((item) => !isExcludedFromRemainingFood(item));
+    if (remainingFoods.length === 0) {
+      return ["食事が終わりました。"];
+    }
+  }
 
   // ※ 何も見つからなかったとき（カメラの向きが悪いなど）
   if (items.length === 0) {
@@ -286,23 +324,37 @@ export function buildInitialMessages(result) {
   // (1) 熱い物（いちばん先に伝える）
   if (hotItems.length > 0) {
     messages.push("熱い物があります。" + hotItems.map(describe).join("、") + "です。");
-  } else {
+  } else if (!isRedetect) {
     messages.push("熱い物は見つかりませんでした。");
   }
 
 
   // (2) 食べてはいけない物
+  //     ・案内開始時：「食べてはいけない物があります。〜です。」
+  //     ・再検出時：「食べてはいけない物」とは言わず、位置だけ伝える
   if (inedibleItems.length > 0) {
-    messages.push("食べてはいけない物があります。" + inedibleItems.map(describe).join("、") + "です。");
-  } else {
+    if (isRedetect) {
+      messages.push(inedibleItems.map(describe).join("、") + "です。");
+    } else {
+      messages.push("食べてはいけない物があります。" + inedibleItems.map(describe).join("、") + "です。");
+    }
+  } else if (!isRedetect) {
     messages.push("食べてはいけない物は見つかりませんでした。");
   }
 
 
-  // (3) そのほかの料理（config.js で ANNOUNCE_OTHERS を true にしたときだけ）
+  // (3) そのほかすべて（お盆・ジェスチャー以外で検出できた残りの要素）
   if (SCAN.ANNOUNCE_OTHERS && otherItems.length > 0) {
     messages.push("そのほか、" + otherItems.map(describe).join("、") + "です。");
   }
 
   return messages;
+}
+
+
+// ------------------------------------------------------------
+// 再検出専用のヘルパー関数
+// ------------------------------------------------------------
+export function buildRedetectMessages(result) {
+  return buildInitialMessages(result, { isRedetect: true });
 }
