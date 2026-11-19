@@ -238,7 +238,7 @@ export const SPEECH = {
   //    "synthesis"  = ブラウザの音声合成で読み上げる
   //                   ※ VoiceOver がオフでも鳴ります
   //                   ※ 詳細設定の「再生速度」がこの方式で使われます
-  MODE: "synthesis",
+  MODE: "voiceover",
 
   // ※ VoiceOver は「いつ読み終わったか」を教えてくれないので、
   //    文字数から読み上げ時間を見積もっています。
